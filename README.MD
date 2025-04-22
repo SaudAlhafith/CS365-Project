@@ -1,7 +1,3 @@
-Got you bro 💀 my bad — thanks for catching that. Since they’re **`.txt` files**, not XML, here’s the corrected `README.md` section:
-
----
-
 ### 📁 Kalimat Corpus Setup (Manual Step)
 
 The Kalimat Corpus **must be downloaded manually** from:
