@@ -4,3 +4,7 @@ scikit-learn
 numpy
 matplotlib
 seaborn
+transformers
+datasets
+evaluate
+accelerate
