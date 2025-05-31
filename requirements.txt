@@ -10,3 +10,4 @@ evaluate
 accelerate
 arabic_reshaper
 python-bidi
+ipywidgets
