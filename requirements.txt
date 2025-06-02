@@ -11,3 +11,8 @@ accelerate
 arabic_reshaper
 python-bidi
 ipywidgets
+torch
+regex
+streamlit
+plotly
+arabert

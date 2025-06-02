@@ -31,12 +31,6 @@ class TraditionalClassifier:
         self.svm_classifier.fit(X_train, y_train)
         self.nb_classifier.fit(X_train, y_train)
         
-        # Test accuracy - comment out to reduce clutter
-        # svm_acc = accuracy_score(y_test, self.svm_classifier.predict(X_test))
-        # nb_acc = accuracy_score(y_test, self.nb_classifier.predict(X_test))
-        # print(f"SVM Accuracy: {svm_acc:.4f}")
-        # print(f"Naive Bayes Accuracy: {nb_acc:.4f}")
-        
         self.is_trained = True
         
     def predict(self, text, model='svm'):
@@ -50,6 +44,29 @@ class TraditionalClassifier:
             return self.svm_classifier.predict(X_new)[0]
         else:
             return self.nb_classifier.predict(X_new)[0]
+    
+    def predict_with_confidence(self, text, model='svm'):
+        if not self.is_trained:
+            self.train()
+            
+        processed_text = self.processor.preprocess_text_classification(text)
+        X_new = self.tfidf_vectorizer.transform([processed_text])
+        
+        if model == 'svm':
+            decision_scores = self.svm_classifier.decision_function(X_new)[0]
+            prediction = self.svm_classifier.predict(X_new)[0]
+            
+            exp_scores = np.exp(decision_scores - np.max(decision_scores))
+            probabilities = exp_scores / np.sum(exp_scores)
+            confidence = np.max(probabilities)
+            
+            return prediction, float(confidence)
+        else:
+            probabilities = self.nb_classifier.predict_proba(X_new)[0]
+            prediction = self.nb_classifier.predict(X_new)[0]
+            confidence = np.max(probabilities)
+            
+            return prediction, float(confidence)
 
 class NGramGenerator:
     def __init__(self, n=3):
@@ -78,7 +95,6 @@ class NGramGenerator:
         self.model = model
         self.all_words = list(set(all_words))
         self.is_trained = True
-        # print(f"N-gram model built with n={self.n} ({len(model)} prefixes)")  # Comment out
     
     def generate_text(self, length=100, start_word=None):
         if not self.is_trained:
@@ -108,7 +124,6 @@ class NGramGenerator:
         return ' '.join(result)
 
 def main():
-    # Test classification
     classifier = TraditionalClassifier()
     
     test_texts = [
@@ -117,18 +132,12 @@ def main():
         "تمكن المنتخب الوطني من الفوز على نظيره الإيراني"
     ]
     
-    print("Classification Results:")
     for text in test_texts:
         prediction = classifier.predict(text)
-        print(f"Text: {text[:50]}...")
-        print(f"Prediction: {prediction}\n")
     
-    # Test generation
     generator = NGramGenerator(n=4)
     
-    print("Generated Text:")
     generated = generator.generate_text(length=50)
-    print(generated)
 
 if __name__ == "__main__":
     main() 

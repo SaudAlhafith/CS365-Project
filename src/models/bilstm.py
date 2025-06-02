@@ -57,7 +57,6 @@ class BiLSTMPredictor:
     def _setup_vocab_and_labels(self):
         df = self.processor.load_data_classification()
         
-        # Build vocabulary
         tokenized_text = [text.split() for text in df['processed_text_classification']]
         word_counts = Counter(word for article in tokenized_text for word in article)
         
@@ -65,7 +64,6 @@ class BiLSTMPredictor:
         self.vocab['<PAD>'] = 0
         self.vocab['<UNK>'] = 1
         
-        # Setup label encoder
         self.label_encoder = LabelEncoder()
         self.label_encoder.fit(df['category'])
         
@@ -86,16 +84,13 @@ class BiLSTMPredictor:
             pad_idx=pad_idx
         ).to(self.device)
         
-        # Load state dict and handle torch.compile() prefix
         state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
         
-        # Remove _orig_mod. prefix if present (from torch.compile)
         if any(k.startswith("_orig_mod.") for k in state_dict.keys()):
             state_dict = {k.replace("_orig_mod.", ""): v for k, v in state_dict.items()}
         
         self.model.load_state_dict(state_dict)
         self.model.eval()
-        # print(f"BiLSTM model loaded from {self.model_path}")  # Comment out to reduce clutter
     
     def _encode_text(self, text, max_len=500):
         tokens = [self.vocab.get(word, self.vocab['<UNK>']) for word in text.split()]
@@ -120,6 +115,88 @@ class BiLSTMPredictor:
             prediction = torch.argmax(outputs, dim=1).cpu().numpy()[0]
             
         return self.label_encoder.inverse_transform([prediction])[0]
+    
+    def predict_with_confidence(self, text):
+        processed_text = self.processor.preprocess_text_classification(text)
+        encoded_text, length = self._encode_text(processed_text)
+        
+        x = torch.tensor([encoded_text], dtype=torch.long).to(self.device)
+        lengths = torch.tensor([length], dtype=torch.long).to(self.device)
+        
+        with torch.no_grad():
+            outputs = self.model(x, lengths)
+            probabilities = torch.softmax(outputs, dim=1).cpu().numpy()[0]
+            prediction = np.argmax(probabilities)
+            confidence = probabilities[prediction]
+            
+        predicted_label = self.label_encoder.inverse_transform([prediction])[0]
+        return predicted_label, float(confidence)
+
+    def predict_batch_with_confidence(self, texts, batch_size=32):
+        """Predict multiple texts in batches for faster inference"""
+        all_predictions = []
+        all_confidences = []
+        
+        # Process in batches
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            batch_encoded = []
+            batch_lengths = []
+            
+            # Encode all texts in batch
+            for text in batch_texts:
+                processed_text = self.processor.preprocess_text_classification(text)
+                encoded_text, length = self._encode_text(processed_text)
+                batch_encoded.append(encoded_text)
+                batch_lengths.append(length)
+            
+            # Convert to tensors
+            x = torch.tensor(batch_encoded, dtype=torch.long).to(self.device)
+            lengths = torch.tensor(batch_lengths, dtype=torch.long).to(self.device)
+            
+            # Batch inference
+            with torch.no_grad():
+                outputs = self.model(x, lengths)
+                probabilities = torch.softmax(outputs, dim=1).cpu().numpy()
+                predictions = np.argmax(probabilities, axis=1)
+                confidences = probabilities[range(len(predictions)), predictions]
+                
+                # Convert predictions to labels
+                predicted_labels = self.label_encoder.inverse_transform(predictions)
+                
+                all_predictions.extend(predicted_labels)
+                all_confidences.extend(confidences.astype(float))
+        
+        return all_predictions, all_confidences
+
+    def predict_batch_chunked_with_confidence(self, chunked_texts, batch_size=32):
+        """Predict multiple pre-chunked texts (integer lists) in batches for faster inference"""
+        all_predictions = []
+        all_confidences = []
+        
+        # Process in batches
+        for i in range(0, len(chunked_texts), batch_size):
+            batch_chunks = chunked_texts[i:i + batch_size]
+            
+            # Convert to tensors (chunks are already encoded as integer lists)
+            x = torch.tensor(batch_chunks, dtype=torch.long).to(self.device)
+            lengths = torch.tensor([len([t for t in chunk if t != 0]) for chunk in batch_chunks], 
+                                 dtype=torch.long).to(self.device)
+            
+            # Batch inference
+            with torch.no_grad():
+                outputs = self.model(x, lengths)
+                probabilities = torch.softmax(outputs, dim=1).cpu().numpy()
+                predictions = np.argmax(probabilities, axis=1)
+                confidences = probabilities[range(len(predictions)), predictions]
+                
+                # Convert predictions to labels
+                predicted_labels = self.label_encoder.inverse_transform(predictions)
+                
+                all_predictions.extend(predicted_labels)
+                all_confidences.extend(confidences.astype(float))
+        
+        return all_predictions, all_confidences
 
 def main():
     predictor = BiLSTMPredictor()
@@ -130,11 +207,8 @@ def main():
         "تمكن المنتخب الوطني من الفوز على نظيره الإيراني في مباراة مثيرة"
     ]
     
-    print("BiLSTM Predictions:")
     for text in test_texts:
         prediction = predictor.predict(text)
-        print(f"Text: {text[:50]}...")
-        print(f"Prediction: {prediction}\n")
 
 if __name__ == "__main__":
     main() 

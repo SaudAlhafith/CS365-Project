@@ -20,6 +20,8 @@ from nltk.corpus import stopwords
 import regex as re
 from transformers import AutoTokenizer
 from arabert.preprocess import ArabertPreprocessor
+from nltk.stem import ISRIStemmer
+import pickle
 
 # Download required NLTK data
 nltk.download('stopwords', quiet=True)
@@ -31,11 +33,11 @@ class KalimatCorpusProcessor:
         self.kalimat_base = kalimat_base
         self.classification_file = classification_file
         self.ngram_file = ngram_file
-        self.expected_dirs = os.listdir(kalimat_base)
+        self.expected_dirs = os.listdir(kalimat_base) if os.path.exists(kalimat_base) else []
         
         # Setup Arabic stopwords and stemmer
         self.arabic_stopwords = set(stopwords.words('arabic'))
-        self.stemmer = nltk.stem.ISRIStemmer()
+        self.stemmer = ISRIStemmer()
         for word in ['في', 'ان', 'ان', 'الى', 'او', 'فى']: 
             self.arabic_stopwords.add(word)
         
@@ -44,26 +46,10 @@ class KalimatCorpusProcessor:
         self.arabert_prep = ArabertPreprocessor(model_name=self.model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
     
-    def check_kalimat_structure_os(self):
-        """Check if Kalimat Corpus structure is correct"""
-        missing = [d for d in self.expected_dirs if not os.path.isdir(os.path.join(self.kalimat_base, d))]
-        
-        if missing:
-            print(f"Missing folders: {missing}")
-            return False
-        else:
-            count = 0
-            for d in self.expected_dirs:
-                folder_path = os.path.join(self.kalimat_base, d)
-                count += len([f for f in os.listdir(folder_path)])
-            print(f"Kalimat Corpus ready with {count} .txt files")
-            return True
-    
     def load_kalimat_articles(self, category):
         """Load articles from a specific category"""
         category_path = os.path.join(self.kalimat_base, category)
         if not os.path.isdir(category_path):
-            print(f"Category '{category}' does not exist in the Kalimat Corpus.")
             return []
 
         articles = []
@@ -81,7 +67,6 @@ class KalimatCorpusProcessor:
                         "word_count": len(words)
                     })
 
-        print(f"Loaded {len(articles)} articles from category '{category}'")
         return articles
     
     def load_all_articles_parallel(self):
@@ -95,57 +80,175 @@ class KalimatCorpusProcessor:
     def load_data_classification(self):
         """Main function to load and return the dataset as DataFrame"""
         if os.path.exists(self.classification_file):
-            # print(f"Loading classification data from {self.classification_file}")  # Comment out
-            df = pd.read_csv(self.classification_file)
-            # print(f"Loaded {len(df)} preprocessed articles")  # Comment out
-            return df
-        
-        print("Loading from source files...")
-        if not self.check_kalimat_structure_os():
-            raise FileNotFoundError("Kalimat Corpus data not found!")
+            return pd.read_csv(self.classification_file)
         
         dataset = self.load_all_articles_parallel()
-        print(f"Dataset loaded with {len(dataset)} articles")
-        
         df = pd.DataFrame(dataset)
-        original_count = len(df)
         df = df.drop_duplicates(subset=['text'])
-        print(f"After removing duplicates: {len(df)} articles (removed {original_count - len(df)})")
-        
-        print("Processing texts for classification...")
         df['processed_text_classification'] = df['text'].apply(self.preprocess_text_classification)
         
         df[['category', 'processed_text_classification']].to_csv(self.classification_file, index=False)
-        print(f"Saved classification data to {self.classification_file}")
-        
         return df
     
     def load_data_ngram(self):
         if os.path.exists(self.ngram_file):
-            # print(f"Loading N-gram data from {self.ngram_file}")  # Comment out
-            df = pd.read_csv(self.ngram_file)
-            # print(f"Loaded {len(df)} preprocessed articles")  # Comment out
-            return df
-        
-        print("Loading from source files...")
-        if not self.check_kalimat_structure_os():
-            raise FileNotFoundError("Kalimat Corpus data not found!")
+            return pd.read_csv(self.ngram_file)
         
         dataset = self.load_all_articles_parallel()
-        print(f"Dataset loaded with {len(dataset)} articles")
-        
         df = pd.DataFrame(dataset)
-        original_count = len(df)
         df = df.drop_duplicates(subset=['text'])
-        print(f"After removing duplicates: {len(df)} articles (removed {original_count - len(df)})")
-        
-        print("Processing texts for N-gram...")
         df['processed_text_ngram'] = df['text'].apply(self.preprocess_text_ngram)
         
         df[['category', 'processed_text_ngram']].to_csv(self.ngram_file, index=False)
-        print(f"Saved N-gram data to {self.ngram_file}")
-        
         return df
+    
+    def load_data_arabert(self):
+        """Load data specifically for AraBERT - preserves original text"""
+        arabert_file = "processed_arabert_data.csv"
+        
+        if os.path.exists(arabert_file):
+            return pd.read_csv(arabert_file)
+        
+        dataset = self.load_all_articles_parallel()
+        df = pd.DataFrame(dataset)
+        df = df.drop_duplicates(subset=['text'])
+        # For AraBERT, we keep the original text and just preprocess it
+        df['processed_text_arabert'] = df['text'].apply(self.preprocess_text_arabert)
+        
+        df[['category', 'text', 'processed_text_arabert']].to_csv(arabert_file, index=False)
+        return df
+    
+    def encode_text(self, article, vocab, max_len=500):
+        """
+        BiLSTM text encoding - chunks article into sequences of max_len
+        Same as used in training
+        """
+        tokens = [vocab.get(word, vocab.get('<UNK>', 1)) for word in article.split()]
+        
+        chunks = []
+        for i in range(0, len(tokens), max_len):
+            chunk = tokens[i:i + max_len]
+            
+            # Pad chunk to max_len
+            if len(chunk) < max_len:
+                chunk += [vocab.get('<PAD>', 0)] * (max_len - len(chunk))
+            
+            chunks.append(chunk)
+        
+        return chunks
+    
+    def encode_text_transformer(self, text, max_len=500):
+        """
+        AraBERT text encoding - chunks text into sequences for transformer
+        Same as used in training
+        """
+        assert max_len < 512, "Max length for BERT should be less than 512 tokens."
+        
+        tokens = self.tokenizer.encode(text, add_special_tokens=False)
+
+        chunks = []
+        for i in range(0, len(tokens), max_len - 2):
+            chunk = tokens[i:i + (max_len - 2)]
+
+            chunk = [2] + chunk + [3]  # Add [CLS] and [SEP] tokens
+
+            padding_length = max_len - len(chunk)
+            chunk += [0] * padding_length  # Pad with zeros
+            chunks.append(chunk)
+        
+        return chunks
+    
+    def load_data_bilstm_chunked(self, max_len=500):
+        """Load chunked data for BiLSTM training/testing - matches original training setup"""
+        bilstm_chunked_file = "processed_bilstm_chunked_data.pkl"  # Use pickle for better performance
+        
+        if os.path.exists(bilstm_chunked_file):
+            with open(bilstm_chunked_file, 'rb') as f:
+                return pickle.load(f)
+        
+        # Load base classification data
+        df = self.load_data_classification()
+        
+        # Create vocabulary (same as BiLSTM model)
+        tokenized_text = [text.split() for text in df['processed_text_classification']]
+        from collections import Counter
+        word_counts = Counter(word for article in tokenized_text for word in article)
+        
+        vocab = {word: idx + 2 for idx, (word, count) in enumerate(word_counts.items())}
+        vocab['<PAD>'] = 0
+        vocab['<UNK>'] = 1
+        
+        # Create label encoder (same as BiLSTM model)
+        from sklearn.preprocessing import LabelEncoder
+        label_encoder = LabelEncoder()
+        encoded_labels = label_encoder.fit_transform(df['category'])
+        
+        # Chunk the data exactly as in training
+        chunked_texts = []
+        chunked_labels = []
+        
+        for article, label in zip(df['processed_text_classification'], encoded_labels):
+            chunks = self.encode_text(article, vocab, max_len)
+            chunked_texts.extend(chunks)
+            chunked_labels.extend([label] * len(chunks))
+        
+        # Create chunked DataFrame with actual lists (not strings)
+        chunked_df = pd.DataFrame({
+            'chunked_text': chunked_texts,  # Keep as actual lists
+            'encoded_label': chunked_labels,
+            'category': [label_encoder.inverse_transform([label])[0] for label in chunked_labels]
+        })
+        
+        # Save as pickle for better performance with lists
+        with open(bilstm_chunked_file, 'wb') as f:
+            pickle.dump(chunked_df, f)
+        print(f"Created BiLSTM chunked dataset with {len(chunked_df)} chunks from {len(df)} articles")
+        
+        return chunked_df
+    
+    def load_data_arabert_chunked(self, max_len=500):
+        """Load chunked data for AraBERT training/testing - matches original training setup"""
+        arabert_chunked_file = "processed_arabert_chunked_data.pkl"  # Use pickle for better performance
+        
+        if os.path.exists(arabert_chunked_file):
+            with open(arabert_chunked_file, 'rb') as f:
+                return pickle.load(f)
+        
+        # Load base data and apply AraBERT preprocessing
+        dataset = self.load_all_articles_parallel()
+        df = pd.DataFrame(dataset)
+        df = df.drop_duplicates(subset=['text'])
+        
+        # Apply AraBERT preprocessing (same as training)
+        df['arabert_text'] = df['text'].apply(self.preprocess_text_arabert)
+        
+        # Create label encoder
+        from sklearn.preprocessing import LabelEncoder
+        label_encoder = LabelEncoder()
+        encoded_labels = label_encoder.fit_transform(df['category'])
+        
+        # Chunk the data exactly as in training
+        chunked_texts = []
+        chunked_labels = []
+        
+        for article, label in zip(df['arabert_text'], encoded_labels):
+            chunks = self.encode_text_transformer(article, max_len)
+            chunked_texts.extend(chunks)
+            chunked_labels.extend([label] * len(chunks))
+        
+        # Create chunked DataFrame with actual lists (not strings)
+        chunked_df = pd.DataFrame({
+            'chunked_text': chunked_texts,  # Keep as actual lists
+            'encoded_label': chunked_labels,
+            'category': [label_encoder.inverse_transform([label])[0] for label in chunked_labels]
+        })
+        
+        # Save as pickle for better performance with lists
+        with open(arabert_chunked_file, 'wb') as f:
+            pickle.dump(chunked_df, f)
+        print(f"Created AraBERT chunked dataset with {len(chunked_df)} chunks from {len(df)} articles")
+        
+        return chunked_df
     
     def load_data(self):
         """Main function to load and return the dataset as DataFrame"""
@@ -196,26 +299,6 @@ class KalimatCorpusProcessor:
         """
         return self.arabert_prep.preprocess(text)
     
-    def encode_text_transformer(self, text, max_len=128):
-        """
-        AraBERT tokenization method that chunks text and adds special tokens
-        """
-        assert max_len < 512, "Max length for BERT should be less than 512 tokens."
-        
-        tokens = self.tokenizer.encode(text, add_special_tokens=False)
-
-        chunks = []
-        for i in range(0, len(tokens), max_len - 2):
-            chunk = tokens[i:i + (max_len - 2)]
-
-            chunk = [2] + chunk + [3]  # Add [CLS] and [SEP] tokens
-
-            padding_length = max_len - len(chunk)
-            chunk += [0] * padding_length  # Pad with zeros
-            chunks.append(chunk)
-        
-        return chunks
-    
     def decode_text_transformer(self, encoded_article):
         """Decode AraBERT tokens back to text"""
         decoded = self.tokenizer.decode(encoded_article, skip_special_tokens=True)
@@ -229,29 +312,19 @@ def main():
     
     # Load classification data
     df_classification = processor.load_data_classification()
-    print(f"\nClassification dataset shape: {df_classification.shape}")
     
     # Load N-gram data
     df_ngram = processor.load_data_ngram()
-    print(f"N-gram dataset shape: {df_ngram.shape}")
     
-    # Display results
-    print(f"\nClassification categories: {df_classification['category'].value_counts()}")
+    # Load AraBERT data
+    df_arabert = processor.load_data_arabert()
     
-    # Test individual preprocessing methods
-    sample_text = "مرحباً بكم في جامعة السلطان قابوس، هذا نص تجريبي يحتوي على أرقام 123 وعلامات ترقيم!"
+    # Load chunked datasets (same as used in training)
+    df_bilstm_chunked = processor.load_data_bilstm_chunked(max_len=500)
+    df_arabert_chunked = processor.load_data_arabert_chunked(max_len=500)
     
-    print(f"\nOriginal text: {sample_text}")
-    print(f"Classification: {processor.preprocess_text_classification(sample_text)}")
-    print(f"N-gram: {processor.preprocess_text_ngram(sample_text)}")
-    print(f"AraBERT: {processor.preprocess_text_arabert(sample_text)}")
-    
-    # Test AraBERT tokenization
-    arabert_tokens = processor.encode_text_transformer(processor.preprocess_text_arabert(sample_text), max_len=50)
-    print(f"AraBERT tokens: {arabert_tokens[0]}")
-    
-    return df_classification, df_ngram, processor
+    return df_classification, df_ngram, df_arabert, df_bilstm_chunked, df_arabert_chunked, processor
 
 
 if __name__ == "__main__":
-    df_classification, df_ngram, processor = main() 
+    df_classification, df_ngram, df_arabert, df_bilstm_chunked, df_arabert_chunked, processor = main() 

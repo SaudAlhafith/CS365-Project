@@ -31,7 +31,6 @@ class AraBERTPredictor:
     def _load_model(self):
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path).to(self.device)
         self.model.eval()
-        # print(f"AraBERT model loaded from {self.model_path}")  # Comment out to reduce clutter
     
     def _encode_text(self, text, max_len=512):
         tokens = self.tokenizer.encode(text, add_special_tokens=True, max_length=max_len, truncation=True, padding='max_length')
@@ -68,6 +67,74 @@ class AraBERTPredictor:
         
         return predicted_label, float(confidence)
 
+    def predict_batch_with_confidence(self, texts, batch_size=16):
+        """Predict multiple texts in batches for faster inference"""
+        all_predictions = []
+        all_confidences = []
+        
+        # Process in batches (smaller batch size for AraBERT due to memory)
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            
+            # Preprocess all texts in batch
+            processed_texts = [self.arabert_prep.preprocess(text) for text in batch_texts]
+            
+            # Encode all texts in batch
+            batch_tokens = []
+            batch_attention_masks = []
+            
+            for text in processed_texts:
+                tokens, attention_mask = self._encode_text(text)
+                batch_tokens.append(tokens)
+                batch_attention_masks.append(attention_mask)
+            
+            # Convert to tensors
+            input_ids = torch.tensor(batch_tokens, dtype=torch.long).to(self.device)
+            attention_mask = torch.tensor(batch_attention_masks, dtype=torch.long).to(self.device)
+            
+            # Batch inference
+            with torch.no_grad():
+                outputs = self.model(input_ids, attention_mask=attention_mask)
+                probabilities = torch.softmax(outputs.logits, dim=1).cpu().numpy()
+                predictions = np.argmax(probabilities, axis=1)
+                confidences = probabilities[range(len(predictions)), predictions]
+                
+                # Convert predictions to labels
+                predicted_labels = self.label_encoder.inverse_transform(predictions)
+                
+                all_predictions.extend(predicted_labels)
+                all_confidences.extend(confidences.astype(float))
+        
+        return all_predictions, all_confidences
+
+    def predict_batch_chunked_with_confidence(self, chunked_texts, batch_size=16):
+        """Predict multiple pre-chunked texts (integer lists) in batches for faster inference"""
+        all_predictions = []
+        all_confidences = []
+        
+        # Process in batches (smaller batch size for AraBERT due to memory)
+        for i in range(0, len(chunked_texts), batch_size):
+            batch_chunks = chunked_texts[i:i + batch_size]
+            
+            # Convert to tensors (chunks are already encoded as integer lists)
+            input_ids = torch.tensor(batch_chunks, dtype=torch.long).to(self.device)
+            attention_mask = (input_ids != 0).long().to(self.device)
+            
+            # Batch inference
+            with torch.no_grad():
+                outputs = self.model(input_ids, attention_mask=attention_mask)
+                probabilities = torch.softmax(outputs.logits, dim=1).cpu().numpy()
+                predictions = np.argmax(probabilities, axis=1)
+                confidences = probabilities[range(len(predictions)), predictions]
+                
+                # Convert predictions to labels
+                predicted_labels = self.label_encoder.inverse_transform(predictions)
+                
+                all_predictions.extend(predicted_labels)
+                all_confidences.extend(confidences.astype(float))
+        
+        return all_predictions, all_confidences
+
 def main():
     predictor = AraBERTPredictor()
     
@@ -77,11 +144,8 @@ def main():
         "تمكن المنتخب الوطني من الفوز على نظيره الإيراني في مباراة مثيرة انتهت بنتيجة ٣-٢"
     ]
     
-    print("AraBERT Predictions:")
     for text in test_texts:
         prediction, confidence = predictor.predict_with_confidence(text)
-        print(f"Text: {text[:60]}...")
-        print(f"Prediction: {prediction} (Confidence: {confidence:.3f})\n")
 
 if __name__ == "__main__":
     main() 
