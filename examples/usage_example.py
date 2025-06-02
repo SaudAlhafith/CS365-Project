@@ -6,7 +6,7 @@ Example usage of the text preprocessing module
 Shows how to use the KalimatCorpusProcessor for different preprocessing needs
 """
 
-from text_preprocessing import KalimatCorpusProcessor
+from src.preprocessing.text_preprocessing import KalimatCorpusProcessor
 import pandas as pd
 
 def example_usage():
