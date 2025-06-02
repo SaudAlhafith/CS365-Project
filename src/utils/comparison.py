@@ -18,7 +18,7 @@ def compare_models():
     
     expected_categories = ["CULTURE", "ECONOMY", "INTERNATIONAL", "LOCAL", "RELIGION", "SPORTS"]
     
-    print("Loading models...")
+    # print("Loading models...")  # Comment out to reduce clutter
     traditional = TraditionalClassifier()
     bilstm = BiLSTMPredictor()
     arabert = AraBERTPredictor()

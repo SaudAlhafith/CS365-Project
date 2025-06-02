@@ -31,7 +31,7 @@ class AraBERTPredictor:
     def _load_model(self):
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path).to(self.device)
         self.model.eval()
-        print(f"AraBERT model loaded from {self.model_path}")
+        # print(f"AraBERT model loaded from {self.model_path}")  # Comment out to reduce clutter
     
     def _encode_text(self, text, max_len=512):
         tokens = self.tokenizer.encode(text, add_special_tokens=True, max_length=max_len, truncation=True, padding='max_length')

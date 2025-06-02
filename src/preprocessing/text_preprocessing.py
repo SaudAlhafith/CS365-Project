@@ -94,14 +94,12 @@ class KalimatCorpusProcessor:
     
     def load_data_classification(self):
         """Main function to load and return the dataset as DataFrame"""
-        # Check if processed CSV exists
         if os.path.exists(self.classification_file):
-            print(f"Loading classification data from {self.classification_file}")
+            # print(f"Loading classification data from {self.classification_file}")  # Comment out
             df = pd.read_csv(self.classification_file)
-            print(f"Loaded {len(df)} preprocessed articles")
+            # print(f"Loaded {len(df)} preprocessed articles")  # Comment out
             return df
         
-        # Load from source files
         print("Loading from source files...")
         if not self.check_kalimat_structure_os():
             raise FileNotFoundError("Kalimat Corpus data not found!")
@@ -109,19 +107,14 @@ class KalimatCorpusProcessor:
         dataset = self.load_all_articles_parallel()
         print(f"Dataset loaded with {len(dataset)} articles")
         
-        # Create DataFrame
         df = pd.DataFrame(dataset)
-        
-        # Remove duplicates based on text
         original_count = len(df)
         df = df.drop_duplicates(subset=['text'])
         print(f"After removing duplicates: {len(df)} articles (removed {original_count - len(df)})")
         
-        # Process for classification
         print("Processing texts for classification...")
         df['processed_text_classification'] = df['text'].apply(self.preprocess_text_classification)
         
-        # Save processed data
         df[['category', 'processed_text_classification']].to_csv(self.classification_file, index=False)
         print(f"Saved classification data to {self.classification_file}")
         
@@ -129,9 +122,9 @@ class KalimatCorpusProcessor:
     
     def load_data_ngram(self):
         if os.path.exists(self.ngram_file):
-            print(f"Loading N-gram data from {self.ngram_file}")
+            # print(f"Loading N-gram data from {self.ngram_file}")  # Comment out
             df = pd.read_csv(self.ngram_file)
-            print(f"Loaded {len(df)} preprocessed articles")
+            # print(f"Loaded {len(df)} preprocessed articles")  # Comment out
             return df
         
         print("Loading from source files...")

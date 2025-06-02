@@ -87,7 +87,7 @@ class BiLSTMPredictor:
         ).to(self.device)
         
         # Load state dict and handle torch.compile() prefix
-        state_dict = torch.load(self.model_path, map_location=self.device)
+        state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
         
         # Remove _orig_mod. prefix if present (from torch.compile)
         if any(k.startswith("_orig_mod.") for k in state_dict.keys()):
@@ -95,7 +95,7 @@ class BiLSTMPredictor:
         
         self.model.load_state_dict(state_dict)
         self.model.eval()
-        print(f"BiLSTM model loaded from {self.model_path}")
+        # print(f"BiLSTM model loaded from {self.model_path}")  # Comment out to reduce clutter
     
     def _encode_text(self, text, max_len=500):
         tokens = [self.vocab.get(word, self.vocab['<UNK>']) for word in text.split()]
