@@ -31,12 +31,11 @@ class TraditionalClassifier:
         self.svm_classifier.fit(X_train, y_train)
         self.nb_classifier.fit(X_train, y_train)
         
-        # Test accuracy
-        svm_acc = accuracy_score(y_test, self.svm_classifier.predict(X_test))
-        nb_acc = accuracy_score(y_test, self.nb_classifier.predict(X_test))
-        
-        print(f"SVM Accuracy: {svm_acc:.4f}")
-        print(f"Naive Bayes Accuracy: {nb_acc:.4f}")
+        # Test accuracy - comment out to reduce clutter
+        # svm_acc = accuracy_score(y_test, self.svm_classifier.predict(X_test))
+        # nb_acc = accuracy_score(y_test, self.nb_classifier.predict(X_test))
+        # print(f"SVM Accuracy: {svm_acc:.4f}")
+        # print(f"Naive Bayes Accuracy: {nb_acc:.4f}")
         
         self.is_trained = True
         
@@ -79,7 +78,7 @@ class NGramGenerator:
         self.model = model
         self.all_words = list(set(all_words))
         self.is_trained = True
-        print(f"N-gram model built with n={self.n} ({len(model)} prefixes)")
+        # print(f"N-gram model built with n={self.n} ({len(model)} prefixes)")  # Comment out
     
     def generate_text(self, length=100, start_word=None):
         if not self.is_trained:

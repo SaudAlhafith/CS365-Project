@@ -12,12 +12,8 @@ def main():
     print("CS365 Arabic Text Classification Demo")
     print("=" * 50)
     
-    print("\n1. Quick Inference Demo:")
-    quick_inference_demo()
-    
-    print("\n" + "=" * 50)
-    print("\nTo run full model comparison, uncomment the line below:")
-    print("# compare_models()")
+    # quick_inference_demo()
+    # print("\n" + "=" * 50)
     
     # Uncomment to run full comparison:
     compare_models()
