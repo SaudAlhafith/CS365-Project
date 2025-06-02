@@ -25,9 +25,12 @@ from arabert.preprocess import ArabertPreprocessor
 nltk.download('stopwords', quiet=True)
 
 class KalimatCorpusProcessor:
-    def __init__(self, kalimat_base="data/KalimatCorpus-2.0", processed_file="processed_classification_data.csv"):
+    def __init__(self, kalimat_base="data/KalimatCorpus-2.0", 
+                 classification_file="processed_classification_data.csv",
+                 ngram_file="processed_ngram_data.csv"):
         self.kalimat_base = kalimat_base
-        self.processed_file = processed_file
+        self.classification_file = classification_file
+        self.ngram_file = ngram_file
         self.expected_dirs = os.listdir(kalimat_base)
         
         # Setup Arabic stopwords and stemmer
@@ -89,12 +92,12 @@ class KalimatCorpusProcessor:
         dataset = [article for category_articles in results for article in category_articles]
         return dataset
     
-    def load_data(self):
+    def load_data_classification(self):
         """Main function to load and return the dataset as DataFrame"""
         # Check if processed CSV exists
-        if os.path.exists(self.processed_file):
-            print(f"Loading preprocessed data from {self.processed_file}")
-            df = pd.read_csv(self.processed_file)
+        if os.path.exists(self.classification_file):
+            print(f"Loading classification data from {self.classification_file}")
+            df = pd.read_csv(self.classification_file)
             print(f"Loaded {len(df)} preprocessed articles")
             return df
         
@@ -119,10 +122,41 @@ class KalimatCorpusProcessor:
         df['processed_text_classification'] = df['text'].apply(self.preprocess_text_classification)
         
         # Save processed data
-        df[['category', 'processed_text_classification']].to_csv(self.processed_file, index=False)
-        print(f"Saved preprocessed data to {self.processed_file}")
+        df[['category', 'processed_text_classification']].to_csv(self.classification_file, index=False)
+        print(f"Saved classification data to {self.classification_file}")
         
         return df
+    
+    def load_data_ngram(self):
+        if os.path.exists(self.ngram_file):
+            print(f"Loading N-gram data from {self.ngram_file}")
+            df = pd.read_csv(self.ngram_file)
+            print(f"Loaded {len(df)} preprocessed articles")
+            return df
+        
+        print("Loading from source files...")
+        if not self.check_kalimat_structure_os():
+            raise FileNotFoundError("Kalimat Corpus data not found!")
+        
+        dataset = self.load_all_articles_parallel()
+        print(f"Dataset loaded with {len(dataset)} articles")
+        
+        df = pd.DataFrame(dataset)
+        original_count = len(df)
+        df = df.drop_duplicates(subset=['text'])
+        print(f"After removing duplicates: {len(df)} articles (removed {original_count - len(df)})")
+        
+        print("Processing texts for N-gram...")
+        df['processed_text_ngram'] = df['text'].apply(self.preprocess_text_ngram)
+        
+        df[['category', 'processed_text_ngram']].to_csv(self.ngram_file, index=False)
+        print(f"Saved N-gram data to {self.ngram_file}")
+        
+        return df
+    
+    def load_data(self):
+        """Main function to load and return the dataset as DataFrame"""
+        return self.load_data_classification()
     
     # =========== PREPROCESSING METHODS ===========
     
@@ -200,27 +234,31 @@ def main():
     # Initialize processor
     processor = KalimatCorpusProcessor()
     
-    # Load data (will use CSV if available)
-    df = processor.load_data()
+    # Load classification data
+    df_classification = processor.load_data_classification()
+    print(f"\nClassification dataset shape: {df_classification.shape}")
+    
+    # Load N-gram data
+    df_ngram = processor.load_data_ngram()
+    print(f"N-gram dataset shape: {df_ngram.shape}")
     
     # Display results
-    print(f"\nDataset shape: {df.shape}")
-    print(f"Categories: {df['category'].value_counts()}")
+    print(f"\nClassification categories: {df_classification['category'].value_counts()}")
     
     # Test individual preprocessing methods
     sample_text = "مرحباً بكم في جامعة السلطان قابوس، هذا نص تجريبي يحتوي على أرقام 123 وعلامات ترقيم!"
     
     print(f"\nOriginal text: {sample_text}")
-    print(f"Classification preprocessing: {processor.preprocess_text_classification(sample_text)}")
-    print(f"N-gram preprocessing: {processor.preprocess_text_ngram(sample_text)}")
-    print(f"AraBERT preprocessing: {processor.preprocess_text_arabert(sample_text)}")
+    print(f"Classification: {processor.preprocess_text_classification(sample_text)}")
+    print(f"N-gram: {processor.preprocess_text_ngram(sample_text)}")
+    print(f"AraBERT: {processor.preprocess_text_arabert(sample_text)}")
     
     # Test AraBERT tokenization
     arabert_tokens = processor.encode_text_transformer(processor.preprocess_text_arabert(sample_text), max_len=50)
-    print(f"AraBERT tokenization: {arabert_tokens[0]}")
+    print(f"AraBERT tokens: {arabert_tokens[0]}")
     
-    return df, processor
+    return df_classification, df_ngram, processor
 
 
 if __name__ == "__main__":
-    df, processor = main() 
+    df_classification, df_ngram, processor = main() 

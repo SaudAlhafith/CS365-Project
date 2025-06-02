@@ -15,24 +15,23 @@ def example_usage():
     print("Arabic Text Processing Example")
     print("=" * 40)
     
-    # Initialize the processor
     processor = KalimatCorpusProcessor()
     
-    # Load data (will use CSV if available)
-    df = processor.load_data()
+    # Load data (separate methods for classification and n-gram)
+    df_classification = processor.load_data_classification()
+    df_ngram = processor.load_data_ngram()
     
     print(f"\nDataset Overview:")
-    print(f"Total articles: {len(df)}")
-    print(f"Categories: {list(df['category'].unique())}")
-    print(f"Available columns: {list(df.columns)}")
+    print(f"Classification articles: {len(df_classification)}")
+    print(f"N-gram articles: {len(df_ngram)}")
+    print(f"Categories: {list(df_classification['category'].unique())}")
     
     # =============== USE CASE 1: Traditional Classification + BiLSTM ===============
     print("\nUSE CASE 1: Traditional Classification + BiLSTM")
     print("-" * 50)
     
-    # Get preprocessed text for classification
-    classification_texts = df['processed_text_classification'].tolist()
-    labels = df['category'].tolist()
+    classification_texts = df_classification['processed_text_classification'].tolist()
+    labels = df_classification['category'].tolist()
     
     print(f"Ready for classification training!")
     print(f"- {len(classification_texts)} preprocessed texts")
@@ -42,18 +41,17 @@ def example_usage():
     print("\nUSE CASE 2: N-gram Text Generation")
     print("-" * 40)
     
-    # Need to preprocess for N-gram on demand
-    sample_text = df['text'].iloc[0]
-    ngram_text = processor.preprocess_text_ngram(sample_text)
+    ngram_texts = df_ngram['processed_text_ngram'].tolist()
     
-    print(f"N-gram preprocessing (preserving natural flow)")
-    print(f"- Example: '{ngram_text[:100]}...'")
+    print(f"Ready for N-gram training!")
+    print(f"- {len(ngram_texts)} preprocessed texts")
+    print(f"- Example: '{ngram_texts[0][:100]}...'")
     
     # =============== USE CASE 3: AraBERT ===============
     print("\nUSE CASE 3: AraBERT Tokenization")
     print("-" * 35)
     
-    # Need to preprocess for AraBERT on demand
+    sample_text = df_classification['text'].iloc[0]
     arabert_text = processor.preprocess_text_arabert(sample_text)
     tokens = processor.encode_text_transformer(arabert_text, max_len=128)
     
@@ -61,7 +59,7 @@ def example_usage():
     print(f"- Generated {len(tokens)} chunks")
     print(f"- First chunk (token IDs): {tokens[0][:20]}...")
     
-    return df, processor
+    return df_classification, df_ngram, processor
 
 def quick_example():
     """Quick example for testing individual preprocessing functions"""
@@ -69,14 +67,12 @@ def quick_example():
     print("Quick Preprocessing Example")
     print("=" * 30)
     
-    # Sample Arabic text
     sample_text = "مرحباً بكم في جامعة السلطان قابوس، هذا نص تجريبي يحتوي على أرقام 123 وعلامات ترقيم!"
     
     processor = KalimatCorpusProcessor()
     
     print(f"\nOriginal text:\n{sample_text}\n")
     
-    # Test all preprocessing methods
     print("1. Classification preprocessing:")
     classification_result = processor.preprocess_text_classification(sample_text)
     print(f"   {classification_result}\n")
@@ -97,11 +93,7 @@ def quick_example():
     print(f"   Decoded: {decoded}")
 
 if __name__ == "__main__":
-    # Run quick example first (no data loading)
     quick_example()
     
-    # Then run full example
-    # df, processor = example_usage()
-    
-    print("\nTo run the full dataset processing, uncomment the line:")
-    print("# df, processor = example_usage()") 
+    print("\nTo run the full dataset processing:")
+    print("# df_classification, df_ngram, processor = example_usage()") 
