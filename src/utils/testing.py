@@ -266,15 +266,34 @@ class ModelTester:
             # Use the chunked test data (already as lists)
             chunked_texts = list(self.X_test_bilstm_chunked)
             total_samples = len(chunked_texts)
+            batch_size = 32
             
             self._update_progress(0, total_samples, "Starting BiLSTM batch prediction on chunked data...")
             
             start_time = time.time()
             
-            # Use the fast batch prediction method for chunked data
-            all_predictions, all_confidences = bilstm.predict_batch_chunked_with_confidence(
-                chunked_texts, batch_size=32
-            )
+            # Process in batches with progress updates
+            all_predictions = []
+            all_confidences = []
+            
+            for i in range(0, len(chunked_texts), batch_size):
+                batch_end = min(i + batch_size, len(chunked_texts))
+                batch_texts = chunked_texts[i:batch_end]
+                
+                # Update progress for this batch
+                self._update_progress(
+                    batch_end, 
+                    total_samples, 
+                    f"Processing BiLSTM batch {(i//batch_size)+1}/{(total_samples-1)//batch_size + 1} ({batch_end}/{total_samples} chunks)"
+                )
+                
+                # Process this batch
+                batch_predictions, batch_confidences = bilstm.predict_batch_chunked_with_confidence(
+                    batch_texts, batch_size=batch_size
+                )
+                
+                all_predictions.extend(batch_predictions)
+                all_confidences.extend(batch_confidences)
             
             total_time = time.time() - start_time
             avg_time_per_chunk = total_time / total_samples
@@ -303,15 +322,34 @@ class ModelTester:
             # Use the chunked test data (already as lists)
             chunked_texts = list(self.X_test_arabert_chunked)
             total_samples = len(chunked_texts)
+            batch_size = 32
             
             self._update_progress(0, total_samples, "Starting AraBERT batch prediction on chunked data...")
             
             start_time = time.time()
             
-            # Use the fast batch prediction method for chunked data
-            all_predictions, all_confidences = arabert.predict_batch_chunked_with_confidence(
-                chunked_texts, batch_size=16
-            )
+            # Process in batches with progress updates
+            all_predictions = []
+            all_confidences = []
+            
+            for i in range(0, len(chunked_texts), batch_size):
+                batch_end = min(i + batch_size, len(chunked_texts))
+                batch_texts = chunked_texts[i:batch_end]
+                
+                # Update progress for this batch
+                self._update_progress(
+                    batch_end, 
+                    total_samples, 
+                    f"Processing AraBERT batch {(i//batch_size)+1}/{(total_samples-1)//batch_size + 1} ({batch_end}/{total_samples} chunks)"
+                )
+                
+                # Process this batch
+                batch_predictions, batch_confidences = arabert.predict_batch_chunked_with_confidence(
+                    batch_texts, batch_size=batch_size
+                )
+                
+                all_predictions.extend(batch_predictions)
+                all_confidences.extend(batch_confidences)
             
             total_time = time.time() - start_time
             avg_time_per_chunk = total_time / total_samples

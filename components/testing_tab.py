@@ -23,11 +23,45 @@ def render_testing_tab():
     
     with col2:
         st.subheader("⚙️ Controls")
-        test_button = st.button("🚀 Start Comprehensive Test", type="primary", key="comprehensive_test_btn")
         
-        if test_button:
-            st.session_state.run_test = True
-            st.session_state.test_complete = False
+        # Check if test is currently running
+        is_testing = st.session_state.get('run_test', False)
+        has_results = hasattr(st.session_state, 'test_results') and st.session_state.test_results and st.session_state.get('test_complete', False)
+        
+        # Show appropriate button state
+        if is_testing:
+            st.button("🔄 Testing in Progress...", disabled=True, type="secondary", key="test_disabled_btn")
+            st.info("⏳ Please wait while the comprehensive test is running...")
+            
+            # Show a cancel option (optional)
+            if st.button("⛔ Cancel Test", key="cancel_test_btn"):
+                st.session_state.run_test = False
+                st.session_state.test_complete = False
+                st.warning("Test cancelled by user.")
+                st.rerun()
+        else:
+            test_button = st.button("🚀 Start Comprehensive Test", type="primary", key="comprehensive_test_btn")
+            
+            if test_button:
+                st.session_state.run_test = True
+                st.session_state.test_complete = False
+                # Ensure URL stays on testing tab
+                st.query_params["tab"] = "testing"
+                st.rerun()  # Immediately rerun to show loading state
+        
+        # Clear results button (only show if there are results)
+        if has_results and not is_testing:
+            st.markdown("---")
+            if st.button("🗑️ Clear Results", key="clear_results_btn"):
+                # Clear all test-related session state
+                if 'test_results' in st.session_state:
+                    del st.session_state.test_results
+                if 'summary_df' in st.session_state:
+                    del st.session_state.summary_df
+                if 'test_complete' in st.session_state:
+                    del st.session_state.test_complete
+                st.success("Results cleared!")
+                st.rerun()
     
     # Only run test if button was clicked and test isn't already complete
     if hasattr(st.session_state, 'run_test') and st.session_state.run_test and not st.session_state.get('test_complete', False):

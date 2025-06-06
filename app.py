@@ -37,6 +37,32 @@ def main():
     st.title("🔤 Arabic Text Classification Demo")
     st.markdown("**CS365 Project - Phase 2**: Real-time comparison of Traditional ML, BiLSTM, and AraBERT models")
     
+    # Handle URL parameters to maintain tab state
+    query_params = st.query_params
+    
+    # Determine active tab based on URL or session state
+    tab_mapping = {
+        "classification": 0,
+        "comparison": 1, 
+        "testing": 2,
+        "generation": 3
+    }
+    
+    # Get tab from URL parameter or default to first tab
+    current_tab_key = query_params.get("tab", "classification")
+    if current_tab_key not in tab_mapping:
+        current_tab_key = "classification"
+    
+    active_tab_index = tab_mapping[current_tab_key]
+    
+    # Store in session state for consistency
+    if 'current_tab' not in st.session_state:
+        st.session_state.current_tab = active_tab_index
+    
+    # Update session state if URL changed
+    if st.session_state.current_tab != active_tab_index:
+        st.session_state.current_tab = active_tab_index
+    
     # Load models with loading indicator
     with st.spinner("Loading and training models... (This may take a few seconds)"):
         traditional, bilstm, arabert, generator = load_models()
@@ -47,6 +73,20 @@ def main():
     
     # Sidebar
     st.sidebar.header("⚙️ Configuration")
+    
+    # Navigation sidebar
+    st.sidebar.markdown("### 🧭 Navigation")
+    tab_labels = ["🔍 Text Classification", "📊 Quick Comparison", "🧪 Comprehensive Testing", "✍️ Text Generation"]
+    tab_keys = ["classification", "comparison", "testing", "generation"]
+    
+    for i, (label, key) in enumerate(zip(tab_labels, tab_keys)):
+        if st.sidebar.button(label, key=f"nav_{key}", use_container_width=True):
+            st.query_params["tab"] = key
+            st.rerun()
+    
+    # Highlight current tab in sidebar
+    current_tab_name = tab_labels[active_tab_index]
+    # st.sidebar.success(f"**Current**: {current_tab_name}")
     
     # Model selection
     selected_models = st.sidebar.multiselect(
@@ -70,19 +110,11 @@ def main():
     - **Transformers**: AraBERT fine-tuned model
     """)
     
-    # Main content tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🔍 Text Classification", 
-        "📊 Quick Comparison", 
-        "🧪 Comprehensive Testing",
-        "✍️ Text Generation"
-    ])
-    
-    with tab1:
+    # Render content based on active tab
+    if active_tab_index == 0:  # Text Classification
         render_classification_tab(traditional, bilstm, arabert, selected_models)
     
-    with tab2:
-        # Keep the original comparison tab for quick tests
+    elif active_tab_index == 1:  # Quick Comparison
         st.header("📊 Quick Model Comparison")
         st.markdown("**Quick comparison on sample texts** (for comprehensive testing, use the Testing tab)")
         
@@ -162,23 +194,16 @@ def main():
                 ).reset_index()
                 st.dataframe(display_df, use_container_width=True)
     
-    with tab3:
+    elif active_tab_index == 2:  # Comprehensive Testing
         render_testing_tab()
     
-    with tab4:
+    elif active_tab_index == 3:  # Text Generation
         render_generation_tab(generator, arabert)
     
     # Footer
     st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: #666;'>
-        <p>CS365 Arabic Text Classification Project - Phase 2</p>
-        <p>🚀 Powered by Traditional ML, BiLSTM, and AraBERT models</p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+    st.markdown("**CS365 Arabic NLP Project** | Built with ❤️ using Streamlit")
+
 
 if __name__ == "__main__":
     main() 
