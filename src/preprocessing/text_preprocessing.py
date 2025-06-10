@@ -28,12 +28,16 @@ nltk.download('stopwords', quiet=True)
 
 class KalimatCorpusProcessor:
     def __init__(self, kalimat_base="data/KalimatCorpus-2.0", 
-                 classification_file="processed_classification_data.csv",
-                 ngram_file="processed_ngram_data.csv"):
+                 classification_file="data/processed/classification_data.csv",
+                 ngram_file="data/processed/ngram_data.csv"):
         self.kalimat_base = kalimat_base
         self.classification_file = classification_file
         self.ngram_file = ngram_file
         self.expected_dirs = os.listdir(kalimat_base) if os.path.exists(kalimat_base) else []
+        
+        # Create directories if they don't exist
+        os.makedirs("data/processed", exist_ok=True)
+        os.makedirs("data/cache", exist_ok=True)
         
         # Setup Arabic stopwords and stemmer
         self.arabic_stopwords = set(stopwords.words('arabic'))
@@ -104,7 +108,7 @@ class KalimatCorpusProcessor:
     
     def load_data_arabert(self):
         """Load data specifically for AraBERT - preserves original text"""
-        arabert_file = "processed_arabert_data.csv"
+        arabert_file = "data/processed/arabert_data.csv"
         
         if os.path.exists(arabert_file):
             return pd.read_csv(arabert_file)
@@ -160,7 +164,7 @@ class KalimatCorpusProcessor:
     
     def load_data_bilstm_chunked(self, max_len=500):
         """Load chunked data for BiLSTM training/testing - matches original training setup"""
-        bilstm_chunked_file = "processed_bilstm_chunked_data.pkl"  # Use pickle for better performance
+        bilstm_chunked_file = "data/cache/bilstm_chunked_data.pkl"  # Use pickle for better performance
         
         if os.path.exists(bilstm_chunked_file):
             with open(bilstm_chunked_file, 'rb') as f:
@@ -208,7 +212,7 @@ class KalimatCorpusProcessor:
     
     def load_data_arabert_chunked(self, max_len=500):
         """Load chunked data for AraBERT training/testing - matches original training setup"""
-        arabert_chunked_file = "processed_arabert_chunked_data.pkl"  # Use pickle for better performance
+        arabert_chunked_file = "data/cache/arabert_chunked_data.pkl"  # Use pickle for better performance
         
         if os.path.exists(arabert_chunked_file):
             with open(arabert_chunked_file, 'rb') as f:

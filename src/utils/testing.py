@@ -25,10 +25,13 @@ class ModelTester:
         self.results = {}
         self.progress_callback = None
         
+        # Create cache directory
+        os.makedirs("data/cache", exist_ok=True)
+        
         # Files to store train/test indices for consistency
-        self.indices_file = "test_indices.pkl"
-        self.bilstm_indices_file = "bilstm_chunked_test_indices.pkl"
-        self.arabert_indices_file = "arabert_chunked_test_indices.pkl"
+        self.indices_file = "data/cache/test_indices.pkl"
+        self.bilstm_indices_file = "data/cache/bilstm_chunked_test_indices.pkl"
+        self.arabert_indices_file = "data/cache/arabert_chunked_test_indices.pkl"
         
         # Prepare different datasets for different models
         self.X_test_classification = None  # For Traditional models
