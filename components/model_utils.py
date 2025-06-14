@@ -6,6 +6,8 @@ import time
 from src.models.traditional import TraditionalClassifier, NGramGenerator
 from src.models.bilstm import BiLSTMPredictor
 from src.models.arabert import AraBERTPredictor
+from src.models.seq2seq_summarizer import Seq2SeqSummarizer
+from src.models.arabart_summarizer import AraBARTSummarizer
 
 @st.cache_resource
 def load_models():
@@ -19,6 +21,16 @@ def load_models():
     except Exception as e:
         st.error(f"Error loading models: {str(e)}")
         return None, None, None, None
+
+@st.cache_resource
+def load_summarization_models():
+    try:
+        seq2seq = Seq2SeqSummarizer()
+        arabart = AraBARTSummarizer()
+        return seq2seq, arabart
+    except Exception as e:
+        st.error(f"Error loading summarization models: {str(e)}")
+        return None, None
 
 def predict_with_timing(model, text, model_name):
     try:

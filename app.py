@@ -6,6 +6,7 @@ from components.model_utils import load_models, CATEGORIES
 from components.classification_tab import render_classification_tab
 from components.testing_tab import render_testing_tab
 from components.generation_tab import render_generation_tab
+from components.summarization_tab import render_summarization_tab
 
 # Page configuration
 st.set_page_config(
@@ -34,8 +35,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
-    st.title("🔤 Arabic Text Classification Demo")
-    st.markdown("**CS365 Project - Phase 2**: Real-time comparison of Traditional ML, BiLSTM, and AraBERT models")
+    st.title("🔤 Arabic NLP Demo")
+    st.markdown("**CS365 Project - Phase 2**: Arabic Text Classification, Generation & Summarization")
     
     # Handle URL parameters to maintain tab state
     query_params = st.query_params
@@ -45,7 +46,8 @@ def main():
         "classification": 0,
         "comparison": 1, 
         "testing": 2,
-        "generation": 3
+        "generation": 3,
+        "summarization": 4
     }
     
     # Get tab from URL parameter or default to first tab
@@ -76,8 +78,8 @@ def main():
     
     # Navigation sidebar
     st.sidebar.markdown("### 🧭 Navigation")
-    tab_labels = ["🔍 Text Classification", "📊 Quick Comparison", "🧪 Comprehensive Testing", "✍️ Text Generation"]
-    tab_keys = ["classification", "comparison", "testing", "generation"]
+    tab_labels = ["🔍 Text Classification", "📊 Quick Comparison", "🧪 Comprehensive Testing", "✍️ Text Generation", "📄 Text Summarization"]
+    tab_keys = ["classification", "comparison", "testing", "generation", "summarization"]
     
     for i, (label, key) in enumerate(zip(tab_labels, tab_keys)):
         if st.sidebar.button(label, key=f"nav_{key}", use_container_width=True):
@@ -104,10 +106,10 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ℹ️ About")
     st.sidebar.markdown("""
-    This demo showcases Arabic text classification using:
-    - **Traditional ML**: SVM and Naive Bayes with TF-IDF
-    - **Deep Learning**: BiLSTM with word embeddings  
-    - **Transformers**: AraBERT fine-tuned model
+    This demo showcases Arabic NLP tasks including:
+    - **Classification**: SVM, BiLSTM, AraBERT models
+    - **Generation**: N-gram based text generation
+    - **Summarization**: Seq2Seq LSTM & AraBART models
     """)
     
     # Render content based on active tab
@@ -199,6 +201,9 @@ def main():
     
     elif active_tab_index == 3:  # Text Generation
         render_generation_tab(generator, arabert)
+    
+    elif active_tab_index == 4:  # Text Summarization
+        render_summarization_tab()
     
     # Footer
     st.markdown("---")

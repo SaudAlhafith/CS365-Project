@@ -7,12 +7,14 @@ __version__ = "1.0.0"
 __author__ = "CS365 Project"
 
 from .preprocessing import KalimatCorpusProcessor
-from .models import TraditionalClassifier, NGramGenerator, BiLSTMPredictor, AraBERTPredictor
+from .models import TraditionalClassifier, NGramGenerator, BiLSTMPredictor, AraBERTPredictor, Seq2SeqSummarizer, AraBARTSummarizer
 
 __all__ = [
     'KalimatCorpusProcessor',
     'TraditionalClassifier', 
     'NGramGenerator',
     'BiLSTMPredictor',
-    'AraBERTPredictor'
+    'AraBERTPredictor',
+    'Seq2SeqSummarizer',
+    'AraBARTSummarizer'
 ] 

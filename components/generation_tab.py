@@ -13,7 +13,7 @@ def render_generation_tab(generator, arabert):
         st.subheader("⚙️ Generation Settings")
         
         length = st.slider("Text Length (words):", min_value=10, max_value=100, value=50)
-        start_word = st.text_input("Start Word (optional):", placeholder="كلمة البداية")
+        start_word = st.text_input("Start Text (optional):", placeholder="النص المطلوب البدء به", help="You can enter a single word or multiple words to start the generation")
         
         if st.button("🎲 Generate Text", type="primary"):
             with st.spinner("Generating..."):
@@ -74,12 +74,13 @@ def render_generation_tab(generator, arabert):
     
     with col1:
         st.markdown("""
-        **Good Start Words:**
+        **Good Start Text Examples:**
         - السلطان (Sultan)
-        - الحكومة (Government) 
-        - المنتخب (Team)
-        - الإمام (Imam)
-        - الأسواق (Markets)
+        - الحكومة تعمل (Government works)
+        - المنتخب فاز (Team won)
+        - الإمام قال (Imam said)
+        - الأسواق ارتفعت (Markets rose)
+        - في المدينة (In the city)
         """)
     
     with col2:

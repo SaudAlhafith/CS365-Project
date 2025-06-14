@@ -29,10 +29,12 @@ nltk.download('stopwords', quiet=True)
 class KalimatCorpusProcessor:
     def __init__(self, kalimat_base="data/KalimatCorpus-2.0", 
                  classification_file="data/processed/classification_data.csv",
-                 ngram_file="data/processed/ngram_data.csv"):
+                 ngram_file="data/processed/ngram_data.csv",
+                 summarization_file="data/processed/summarization_data.csv"):
         self.kalimat_base = kalimat_base
         self.classification_file = classification_file
         self.ngram_file = ngram_file
+        self.summarization_file = summarization_file
         self.expected_dirs = os.listdir(kalimat_base) if os.path.exists(kalimat_base) else []
         
         # Create directories if they don't exist
@@ -49,6 +51,13 @@ class KalimatCorpusProcessor:
         self.model_name = "aubmindlab/bert-base-arabertv02"
         self.arabert_prep = ArabertPreprocessor(model_name=self.model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        
+        # Setup AraBART for summarization
+        self.arabart_model_name = "moussaKam/AraBART"
+        try:
+            self.arabart_tokenizer = AutoTokenizer.from_pretrained(self.arabart_model_name)
+        except:
+            self.arabart_tokenizer = None
     
     def load_kalimat_articles(self, category):
         """Load articles from a specific category"""
@@ -307,6 +316,74 @@ class KalimatCorpusProcessor:
         """Decode AraBERT tokens back to text"""
         decoded = self.tokenizer.decode(encoded_article, skip_special_tokens=True)
         return decoded.replace('  ', ' ').strip()  # Clean up double spaces
+    
+    # =========== SUMMARIZATION METHODS ===========
+    
+    def load_data_summarization(self):
+        """Load summarization dataset"""
+        if os.path.exists(self.summarization_file):
+            return pd.read_csv(self.summarization_file)
+        
+        # For now, return None - this would be where you load your summarization dataset
+        # Replace this with actual data loading from "Text summarization dataset.xlsx"
+        print("Summarization dataset not found. Please ensure 'Text summarization dataset.xlsx' is available.")
+        return None
+    
+    def normalize_arabic_summarization(self, text):
+        """
+        Normalize Arabic text for summarization
+        - Normalizes Arabic letters  
+        - Removes diacritics
+        - Removes non-Arabic characters and digits
+        - Cleans whitespace
+        """
+        if pd.isna(text) or not isinstance(text, str):
+            return ""
+        
+        text = re.sub(r'[إأآا]', 'ا', text)
+        text = re.sub(r'ى', 'ي', text)
+        text = re.sub(r'ؤ', 'و', text)
+        text = re.sub(r'ئ', 'ي', text)
+        text = re.sub(r'ة', 'ه', text)
+        text = re.sub(r'[\u064B-\u0652]', '', text)  # remove Arabic diacritics
+        text = re.sub(r'[^\u0600-\u06FF\s]', '', text)
+        text = re.sub(r'\d+', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    
+    def prepare_sequences_seq2seq(self, texts, summaries, max_text_len=128, max_summary_len=32):
+        """
+        Prepare sequences for Seq2Seq model using TensorFlow tokenizer
+        Returns tokenizer and padded sequences
+        """
+        try:
+            from tensorflow.keras.preprocessing.text import Tokenizer
+            from tensorflow.keras.preprocessing.sequence import pad_sequences
+        except ImportError:
+            print("TensorFlow not available. Cannot prepare Seq2Seq sequences.")
+            return None, None, None
+        
+        all_texts = list(texts) + list(summaries)
+        tokenizer = Tokenizer(filters='', oov_token=None)
+        tokenizer.fit_on_texts(all_texts)
+        
+        # Add special tokens
+        tokenizer.word_index['<sos>'] = len(tokenizer.word_index) + 1
+        tokenizer.word_index['<eos>'] = len(tokenizer.word_index) + 1
+        
+        # Convert texts to sequences
+        text_sequences = tokenizer.texts_to_sequences(texts)
+        summary_sequences = tokenizer.texts_to_sequences(summaries)
+        
+        # Add <sos> and <eos> to summaries
+        summary_sequences = [[tokenizer.word_index['<sos>']] + seq + [tokenizer.word_index['<eos>']] 
+                            for seq in summary_sequences]
+        
+        # Pad sequences
+        text_padded = pad_sequences(text_sequences, maxlen=max_text_len, padding='post')
+        summary_padded = pad_sequences(summary_sequences, maxlen=max_summary_len, padding='post')
+        
+        return tokenizer, text_padded, summary_padded
 
 
 def main():

@@ -101,25 +101,64 @@ class NGramGenerator:
             self.build_model()
             
         if start_word is None:
-            start_word = random.choice(self.all_words)
-        
-        valid_prefixes = [prefix for prefix in self.model.keys() if start_word in prefix]
-        
-        if valid_prefixes:
-            current = random.choice(valid_prefixes)
-        else:
+            # No start word specified, pick a random prefix
             current = random.choice(list(self.model.keys()))
+            result = list(current)
+        else:
+            # Start word specified, ensure the text begins with it
+            start_words = start_word.strip().split()
+            
+            if len(start_words) >= self.n - 1:
+                # If start text has enough words, use last n-1 words as prefix
+                prefix = tuple(start_words[-(self.n-1):])
+                result = start_words
+            else:
+                # If start text is shorter, find prefixes that start with it
+                if len(start_words) == 1:
+                    # Single start word - find prefixes that begin with this word
+                    valid_prefixes = [prefix for prefix in self.model.keys() if prefix[0] == start_words[0]]
+                else:
+                    # Multiple start words - find prefixes that start with these words
+                    valid_prefixes = [prefix for prefix in self.model.keys() 
+                                    if prefix[:len(start_words)] == tuple(start_words)]
+                
+                if valid_prefixes:
+                    # Found valid prefixes, choose one randomly
+                    current_prefix = random.choice(valid_prefixes)
+                    result = list(current_prefix)
+                    prefix = current_prefix
+                else:
+                    # No valid prefixes found, start with user's words and find next best prefix
+                    result = start_words[:]
+                    # Try to find a prefix starting with the last word
+                    last_word_prefixes = [prefix for prefix in self.model.keys() if prefix[0] == start_words[-1]]
+                    if last_word_prefixes:
+                        prefix = random.choice(last_word_prefixes)
+                        result.extend(list(prefix)[1:])  # Add the rest of the prefix (excluding first word which we already have)
+                    else:
+                        # Fallback to random prefix
+                        prefix = random.choice(list(self.model.keys()))
+                        result.extend(list(prefix))
+            
+            # Set current context for generation
+            if len(result) >= self.n - 1:
+                current = tuple(result[-(self.n-1):])
+            else:
+                current = random.choice(list(self.model.keys()))
+                result.extend(list(current))
+                current = tuple(result[-(self.n-1):])
         
-        result = list(current)
-        
-        for _ in range(length):
+        # Generate the rest of the text
+        for _ in range(length - len(result)):
             if current in self.model:
                 next_word = random.choice(self.model[current])
                 result.append(next_word)
                 current = tuple(result[-(self.n-1):])
             else:
+                # Current context not found, pick a random prefix and continue
                 current = random.choice(list(self.model.keys()))
-                result.extend(current)
+                result.extend(list(current))
+                current = tuple(result[-(self.n-1):])
         
         return ' '.join(result)
 
