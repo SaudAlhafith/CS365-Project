@@ -17,6 +17,7 @@ streamlit
 plotly
 arabert
 keras
+tf-keras
 tensorflow
 openpyxl
 rouge-score
