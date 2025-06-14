@@ -11,11 +11,24 @@ class Encoder(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True, bidirectional=True)
+        # Bridge layers to convert bidirectional LSTM output
+        self.h_bridge = nn.Linear(hidden_dim * 2, hidden_dim)
+        self.c_bridge = nn.Linear(hidden_dim * 2, hidden_dim)
     
     def forward(self, x):
         embedded = self.embedding(x)
         outputs, (hidden, cell) = self.lstm(embedded)
+        
+        # hidden and cell are (2, batch, hidden_dim) for bidirectional
+        # Concatenate forward and backward hidden states
+        hidden = torch.cat([hidden[0], hidden[1]], dim=1)  # (batch, hidden_dim * 2)
+        cell = torch.cat([cell[0], cell[1]], dim=1)        # (batch, hidden_dim * 2)
+        
+        # Project to decoder hidden size
+        hidden = self.h_bridge(hidden).unsqueeze(0)  # (1, batch, hidden_dim)
+        cell = self.c_bridge(cell).unsqueeze(0)      # (1, batch, hidden_dim)
+        
         return outputs, (hidden, cell)
 
 class Decoder(nn.Module):
@@ -23,11 +36,13 @@ class Decoder(nn.Module):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
+        self.norm = nn.LayerNorm(hidden_dim)  # Add layer normalization
         self.fc = nn.Linear(hidden_dim, vocab_size)
     
     def forward(self, x, hidden, cell):
         embedded = self.embedding(x)
         output, (hidden, cell) = self.lstm(embedded, (hidden, cell))
+        output = self.norm(output)  # Apply layer normalization
         prediction = self.fc(output)
         return prediction, hidden, cell
 
@@ -89,9 +104,14 @@ class Seq2SeqSummarizer:
     def _load_model(self):
         """Load the trained Seq2Seq model"""
         try:
-            # In practice, you'd need to know the vocab size from training
-            # For now, using a default value
-            self.vocab_size = 20000  # This should match training vocab size
+            # Load the model state to get the correct vocab size
+            state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
+            
+            # Get vocab size from the embedding layer
+            embedding_shape = state_dict['encoder.embedding.weight'].shape
+            self.vocab_size = embedding_shape[0]  # Should be 267263 based on error
+            
+            print(f"Detected vocab size: {self.vocab_size}")
             
             self.model = Seq2Seq(
                 vocab_size=self.vocab_size,
@@ -99,9 +119,9 @@ class Seq2SeqSummarizer:
                 hidden_dim=self.hidden_dim
             ).to(self.device)
             
-            state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
             self.model.load_state_dict(state_dict)
             self.model.eval()
+            print("Seq2Seq model loaded successfully!")
             
         except Exception as e:
             print(f"Error loading Seq2Seq model: {str(e)}")

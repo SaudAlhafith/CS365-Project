@@ -106,7 +106,7 @@ def render_summarization_tab():
             show_confidence = st.checkbox("Show confidence scores", True)
     
     # Generate summaries
-    if st.button("🔍 Generate Summaries", type="primary") and input_text.strip():
+    if st.button("🔍 Generate Summaries", type="primary", key="generate_summaries_btn") and input_text.strip():
         if len(input_text.strip()) < 50:
             st.warning("Please enter a longer text (at least 50 characters) for better summarization.")
             return
@@ -225,7 +225,7 @@ def render_summarization_tab():
                 df_comparison = pd.DataFrame(comparison_data)
                 st.dataframe(df_comparison, use_container_width=True)
     
-    elif st.button("🔍 Generate Summaries", type="primary"):
+    elif st.button("🔍 Generate Summaries", type="primary", key="generate_summaries_empty_btn"):
         st.warning("Please enter some text to summarize.")
 
 def main():
