@@ -19,3 +19,4 @@ arabert
 keras
 tensorflow
 openpyxl
+rouge-score
