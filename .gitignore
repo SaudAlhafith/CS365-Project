@@ -33,6 +33,7 @@ MANIFEST
 results/
 *.pth
 *.csv
+*.xlsx
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
