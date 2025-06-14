@@ -44,7 +44,7 @@ class BiLSTMClassifier(nn.Module):
         return self.fc2(out)
 
 class BiLSTMPredictor:
-    def __init__(self, model_path="bilstm_best_model.pth"):
+    def __init__(self, model_path="bilstm_classifier_model.pth"):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.processor = KalimatCorpusProcessor()
         self.model = None

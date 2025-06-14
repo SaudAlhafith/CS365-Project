@@ -50,8 +50,8 @@ streamlit run app.py
 ```
 ├── CS365-Project-Phase2-saud.ipynb    # Main notebook with all code
 ├── app.py                             # Streamlit web demo
-├── bilstm_best_model.pth             # Trained BiLSTM model
-├── results/checkpoint-288-best/       # AraBERT model
+├── bilstm_classifier_model.pth             # Trained BiLSTM model
+├── results/checkpoint-final/       # AraBERT model
 ├── src/                              # Source code modules
 ├── data/KalimatCorpus-2.0/           # Dataset (download manually)
 ├── requirements.txt                   # Python dependencies

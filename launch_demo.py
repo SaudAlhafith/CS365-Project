@@ -42,8 +42,8 @@ def check_dependencies():
 def check_required_files():
     """Check if all required model files exist"""
     required_files = [
-        ("bilstm_best_model.pth", "BiLSTM model"),
-        ("results/checkpoint-288-best", "AraBERT model directory"),
+        ("bilstm_classifier_model.pth", "BiLSTM model"),
+        ("results/checkpoint-final", "AraBERT model directory"),
         ("processed_classification_data.csv", "Classification data"),
         ("processed_ngram_data.csv", "N-gram data"),
         ("src/models/traditional.py", "Traditional models"),
@@ -116,7 +116,7 @@ def main():
     
     if not files_exist:
         print("\n❌ Some required files are missing. Please ensure:")
-        print("   • Model files are in place (bilstm_best_model.pth, results/checkpoint-288-best)")
+        print("   • Model files are in place (bilstm_classifier_model.pth, results/checkpoint-final)")
         print("   • Data files are processed (processed_*.csv)")
         print("   • Source code is organized in src/ directory")
         return

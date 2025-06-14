@@ -9,7 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 from ..preprocessing.text_preprocessing import KalimatCorpusProcessor
 
 class AraBERTPredictor:
-    def __init__(self, model_path="results/checkpoint-288-best"):
+    def __init__(self, model_path="results/checkpoint-final"):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model_name = "aubmindlab/bert-base-arabertv02"
         self.model_path = model_path
