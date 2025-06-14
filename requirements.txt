@@ -16,3 +16,6 @@ regex
 streamlit
 plotly
 arabert
+keras
+tensorflow
+openpyxl
